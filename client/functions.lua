@@ -1,114 +1,96 @@
-function spawnClient(name, x, y, z, h)
-
-    local hash = GetHashKey(name)
-
+function spawnClient(model, coords, heading)
+    model = (type(model) == 'number' and model or GetHashKey(model))
     RequestModel(hash)
 
-    while not HasModelLoaded(hash) do Wait(500) end
+    while not HasModelLoaded(hash) do Wait(8) end
 
-    local pnj = CreatePed(6, hash, x, y, z, h, true, false)
-
-    return pnj
-
+    return CreatePed(6, model, coords.x, coords.y, coords.z, heading, true, false)
 end
 
-function createBlip(x, y, z)
-
-    local blip = AddBlipForCoord(x, y, z)
-    SetBlipSprite (blip, 51)
-    SetBlipScale  (blip, 1.0)
-    SetBlipDisplay(blip, 4)
-    SetBlipColour (blip, 1)
+function createBlip(coords)
+    local blip = AddBlipForCoord(coords.x, coords.y, coords.z)
+    SetBlipSprite (blip, Config.blip.sprite)
+    SetBlipScale  (blip, Config.blip.scale)
+    SetBlipDisplay(blip, Config.blip.display)
+    SetBlipColour (blip, Config.blip.color)
     SetBlipAsShortRange(blip, true)
-
     BeginTextCommandSetBlipName("STRING")
     AddTextComponentString("Client")
     EndTextCommandSetBlipName(blip)
 
     return blip
+end
 
+function sellDrug(drug)
+    ESX.TriggerServerCallback('sellDrug', function(error, message)
+        if error then
+            ESX.ShowNotification(message)
+        end
+    end)
 end
 
 function startSell(drug)
-
-    ESX.ShowNotification("Recherche d'un client ...")
-    local canSell = true
-
+    ESX.ShowNotification(_U("customer_search"))
+    local playerPed = PlayerPedId()
     TaskStartScenarioInPlace(PlayerPedId(), "WORLD_HUMAN_STAND_MOBILE", 0, true)
 
     SetTimeout(math.random(Config.minTime, Config.maxTime), function()
-    
-        ClearPedTasks(PlayerPedId())
+        ClearPedTasks(playerPed)
 
-        ESX.ShowAdvancedNotification("???", "Vente : ~r~"..drug, "j'ai trouvé un client, dirige toi vers lui", "CHAR_LJT")
+        ESX.ShowAdvancedNotification(
+            "???",
+            "Vente : ~r~"..drug,
+            _U('customer_found'),
+            "CHAR_LJT"
+        )
 
-        local pos = GetEntityCoords(PlayerPedId())
-
-        local pnj = spawnClient("a_m_y_genstreet_01", pos.x+math.random(7, 15), pos.y+math.random(7, 15), pos.z)
-
-        local pos2 = GetEntityCoords(pnj)
-
-        local blip = createBlip(pos2.x, pos2.y, pos2.z)
+        local playerCoords = GetEntityCoords(playerPed)
+        local pnj = spawnClient("a_m_y_genstreet_01", (pos + vector3(math.random(7, 15), math.random(7, 15), 0)), math.random(0, 359))
+        local pnjCoords = GetEntityCoords(pnj)
+        local blip = createBlip(pnjCoords)
         
-        TaskGoToEntity(pnj, PlayerPedId(), 60000, 4.0, 2.0, 0, 0)
+        TaskGoToEntity(pnj, playerPed, 60000, 4.0, 2.0, 0, 0)
 
         CreateThread(function()
+            local wait, distance
 
-            local wait = 1000
-            local dst
-        
-            while canSell do 
-
-                pos = GetEntityCoords(PlayerPedId())
-                pos2 = GetEntityCoords(pnj)
-                dst = #(pos - pos2)
-
-                if dst <= 2 then 
-
-                    wait = 0
-
-                    ESX.ShowHelpNotification("Appuie sur ~INPUT_CONTEXT~ pour vendre ta ~r~drogue")
-
-                    if IsControlJustPressed(0, 51) then 
-
-                        TriggerServerEvent('error:sellDrug', drug)
-                        RemoveBlip(blip)
-                        TaskWanderStandard(pnj)
-                        canSell = false
-
-                    end
-
-                else wait = 1000
-
+            while (function()
+                if distance > 20 then
+                    -- Le joueur est trop loin du ped, arrêt de la boucle
+                    return false
                 end
 
-                Wait(wait)
-            end
-        
-        end)
-    
-    end)
+                if distance <= 2 then 
+                    wait = 0
 
+                    ESX.ShowHelpNotification(_U("press_to_sold"))
+
+                    if IsControlJustPressed(0, 51) then 
+                        RemoveBlip(blip)
+                        TaskWanderStandard(pnj)
+                        -- La drogue a été vendue, arrêt de la boucle
+                        return false
+                    end
+                end
+
+                return true
+            end)() do
+                Wait(wait)
+                playercoords = GetEntityCoords(playerPed)
+                pnjCoords = GetEntityCoords(pnj)
+                distance = #(playerCoords - pnjCoords)
+            end
+        end)
+    end)
 end
 
-
 function getAllDrugs()
-
-    local all_btn = {}
-
-    for _,v in pairs(Config.drugs) do 
-
-        table.insert(all_btn, {
-
-            name = "Vente de drogue : ~r~"..v.label,
+    return ESX.Table.Map(drug, function()
+        return {
+            name = _U("drug_sale", v.label)
             ask = '~p~>',
             askX = true,
             data = v.name
-
-        })
-
-    end
-
-    return all_btn
-
+        }
+    end)
 end

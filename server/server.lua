@@ -1,37 +1,39 @@
 ESX = nil
-TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
 
-RegisterNetEvent('error:sellDrug')
-AddEventHandler('error:sellDrug', function(drug)
-
-    local xPlayer = ESX.GetPlayerFromId(source)
-
-    local inv = xPlayer.getInventoryItem(drug).count
-
-    if inv >= 1 then
-
-        local nb = math.random(1, inv)
-
-        xPlayer.removeInventoryItem(drug, nb)
-
-        for _,item in pairs(Config.drugs) do 
-
-            if drug == item.name then 
-
-                xPlayer.addAccountMoney('black_money', nb*item.price)
-
-                xPlayer.showNotification("Vous avez vendu : ~r~"..nb.." "..drug.."~s~ pour "..nb*item.price.."$")
-
-            end
-
-        end
-
-    else
-
-        xPlayer.showNotification("~r~Vous n'avez pas assez de : ~b~"..drug)
-
+AddEventHandle('onServerResourceStart', function(resourceName)
+    if GetCurrentResourceName() ~= resourceName then
         return
-
     end
 
+    while (function()
+        if ESX == nil then
+            return true
+        end
+
+        ESX.RegisterServerCallback('error:sellDrug', sellDrug)
+    end)() do
+        TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
+        Wait(64)
+    end
 end)
+
+function sellDrug(source, cb, drug)
+    local xPlayer = ESX.GetPlayerFromId(source)
+
+    if ESX.Table.Find(Config.drugs, function(drugName) if drugName == name) then
+        local item = xPlayer.getInventoryItem(drug)
+
+        if item == nil then
+            cb(true, _U("not_have_item", drug))
+        end
+        
+        if item.count < 1 then
+            cb(true, _U("not_have_enough_item", drug))
+        else
+            xPlayer.removeInventoryItem(drug, math.random(1, inv))
+            xPlayer.addAccountMoney('black_money', nb*item.price)
+            xPlayer.showNotification(_U("sold_item", nb, drug, nb * item.price))
+            cb(false)
+        end
+    end
+end

@@ -1,18 +1,15 @@
 -- Generated automaticly by RB Generator.
-fx_version('cerulean')
-games({ 'gta5' })
+fx_version 'cerulean'
+game 'gta5'
 
-shared_script('config.lua');
+shared_scripts {
+    '@es_extended/locale.lua'
+    'config.lua'
+}
 
-server_scripts({
+server_scripts 'server/main.lua'
 
-    'server/*.lua'
-
-});
-
-client_scripts({
-
+client_scripts {
     'lib/pmenu.lua',
     'client/*.lua'
-
-});
+}
