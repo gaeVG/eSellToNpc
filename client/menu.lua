@@ -4,8 +4,8 @@ eSellToNpc.Base = {
 
     Header = {"commonmenu", "interaction_bgd"},
     Color = {color_Green},
-    HeaderColor = {255, 255, 255},
-    Title = 'Vente de drogue'
+    HeaderColor = {255, 0, 0},
+    Title = 'Vente de ~r~drogues'
 
 }
 
